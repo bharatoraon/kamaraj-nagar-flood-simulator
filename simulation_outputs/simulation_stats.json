@@ -1,0 +1,39 @@
+{
+  "simulation_scenario": "Puducherry Northeast Monsoon Severe Cloudburst",
+  "duration_minutes": 120.0,
+  "peak_rain_rate_mm_hr": 85.0,
+  "drain_capacity_mm_hr": 30.0,
+  "grid_resolution_m": 5.0,
+  "domain_cells": 269068,
+  "valid_cells": 266636,
+  "max_depth_recorded_m": 13.988775797165946,
+  "max_velocity_recorded_m_s": 906.5695675535674,
+  "inundation_areas": {
+    "depth_gt_0.05m_ha": 266.85,
+    "depth_gt_0.30m_ha": 140.27,
+    "depth_gt_0.60m_ha": 60.99
+  },
+  "building_impact": {
+    "total_buildings": 26236,
+    "flooded_buildings_total": 18307,
+    "flooded_percentage": 69.8,
+    "risk_breakdown": {
+      "Safe / Dry": 7929,
+      "Minor (0.05-0.3m)": 7052,
+      "Moderate (0.3-0.6m)": 6386,
+      "High (0.6-1.2m)": 4020,
+      "Severe (>1.2m)": 849
+    }
+  },
+  "time_series_snapshots": [
+    10,
+    20,
+    30,
+    45,
+    60,
+    75,
+    90,
+    105,
+    120
+  ]
+}
