@@ -3,153 +3,609 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kamaraj Nagar 2D Urban Flood Simulator & WebGIS Dashboard</title>
+  <title>Kamaraj Nagar — 2D Urban Flood Simulator</title>
   
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            darkbg: '#0b0f19',
-            cardbg: '#111827',
-            cardborder: '#1f2937',
-            accentblue: '#38bdf8',
-            accentcyan: '#06b6d4',
-          }
-        }
-      }
-    }
-  </script>
-  
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    #map { height: 100%; width: 100%; z-index: 1; background: #080c14; }
-    .glass-panel {
-      background: rgba(17, 24, 39, 0.88);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    :root {
+      --bg-primary: #000000;
+      --bg-secondary: #0a0a0a;
+      --bg-panel: #111111;
+      --bg-hover: #1c1c1c;
+      --border-subtle: #222222;
+      --border-strong: #333333;
+      --text-primary: #ffffff;
+      --text-secondary: #a3a3a3;
+      --text-muted: #666666;
     }
-    .custom-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: #38bdf8;
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body, html {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+    }
+
+    /* Top Navigation Header (Pure Monochrome) */
+    header {
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1000;
+      height: 52px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--text-primary);
+      background: transparent;
+    }
+
+    .brand-text h1 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    .brand-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.01em;
+    }
+
+    .kpi-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .kpi-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .kpi-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .kpi-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-mono {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 500;
       cursor: pointer;
-      box-shadow: 0 0 10px #38bdf8;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
     }
-    /* Leaflet popup dark theme */
+
+    .btn-mono:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+    }
+
+    .btn-mono-primary {
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      border: 1px solid var(--text-primary);
+      font-weight: 600;
+    }
+
+    .btn-mono-primary:hover {
+      background: #e5e5e5;
+    }
+
+    /* Map Viewport */
+    #map {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #050505;
+      z-index: 1;
+    }
+
+    /* Floating Timeline Controller (Monochrome) */
+    .timeline-container {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      width: min(620px, calc(100vw - 32px));
+      background: rgba(10, 10, 10, 0.94);
+      border: 1px solid var(--border-subtle);
+      padding: 14px 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    .timeline-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .time-status {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .time-current {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-phase {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .speed-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .speed-btn {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 7px;
+      cursor: pointer;
+    }
+
+    .speed-btn.active {
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      border-color: var(--text-primary);
+    }
+
+    .timeline-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-play {
+      width: 32px;
+      height: 32px;
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+    }
+
+    .btn-play:hover {
+      background: #e5e5e5;
+    }
+
+    .slider-track-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    input[type=range].mono-range {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border-strong);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range].mono-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--text-primary);
+      border: 2px solid var(--bg-primary);
+      cursor: pointer;
+    }
+
+    .ticks-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 9px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .timeline-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .opacity-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Floating Legend (Bottom Left, Map Scale Colors Retained) */
+    .legend-panel {
+      position: absolute;
+      bottom: 24px;
+      left: 20px;
+      z-index: 1000;
+      background: rgba(10, 10, 10, 0.94);
+      border: 1px solid var(--border-subtle);
+      padding: 12px 14px;
+      width: 170px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    .legend-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+    }
+
+    .swatch {
+      width: 12px;
+      height: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Side Drawer Panel */
+    .drawer {
+      position: absolute;
+      top: 52px;
+      right: 0;
+      bottom: 0;
+      width: 340px;
+      max-width: 100vw;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border-subtle);
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drawer-header h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .toggle-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .toggle-item:hover {
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+
+    .toggle-item input[type="checkbox"] {
+      accent-color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .select-mono {
+      width: 100%;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-size: 11px;
+      padding: 8px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .select-mono:focus {
+      border-color: var(--text-primary);
+    }
+
+    .stat-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-bar-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 10px;
+    }
+
+    .stat-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-bar-track {
+      height: 4px;
+      background: var(--bg-hover);
+      width: 100%;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      background: var(--text-primary);
+    }
+
+    .basemap-grid {
+      display: grid;
+      grid-template-cols: 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .basemap-btn {
+      padding: 8px;
+      font-size: 11px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .basemap-btn.active {
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      border-color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .drawer-footer {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .download-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 10px;
+      text-decoration: none;
+    }
+
+    .download-link:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* Minimalist Leaflet popup */
     .leaflet-popup-content-wrapper {
-      background: #111827 !important;
-      color: #f3f4f6 !important;
-      border-radius: 10px !important;
-      border: 1px solid #374151 !important;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+      background: #000000 !important;
+      color: #ffffff !important;
+      border: 1px solid #333333 !important;
+      border-radius: 0 !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.9) !important;
+      font-size: 11px !important;
     }
+
     .leaflet-popup-tip {
-      background: #111827 !important;
-    }
-    .leaflet-popup-close-button {
-      color: #9ca3af !important;
+      background: #000000 !important;
     }
   </style>
 </head>
-<body class="bg-darkbg text-gray-100 flex flex-col h-screen">
+<body>
+  <div id="app">
+    <!-- Monochrome Top Navigation Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+          <h1>Kamaraj Nagar — Flood Model</h1>
+          <p>Puducherry, India &bull; 5m 2D Hydrodynamic &bull; AOI Boundary Clipped</p>
+        </div>
+      </div>
 
-  <!-- Top Navigation & KPI Header -->
-  <header class="glass-panel z-20 px-5 py-3 flex flex-wrap items-center justify-between border-b border-gray-800 shrink-0">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-        <i data-lucide="waves" class="w-6 h-6 text-white"></i>
+      <!-- Monochrome Key Metrics -->
+      <div class="kpi-row">
+        <div class="kpi-item">
+          <span class="kpi-label">Storm Intensity</span>
+          <span class="kpi-value" id="kpi-rain">85.0 mm/h</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">AOI Inundated</span>
+          <span class="kpi-value" id="kpi-area">137.5 ha</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">Flooded Buildings</span>
+          <span class="kpi-value" id="kpi-buildings">7,150 (80.2%)</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">Max Depth (AOI)</span>
+          <span class="kpi-value" id="kpi-depth">2.84 m</span>
+        </div>
       </div>
-      <div>
-        <h1 class="text-base font-bold text-white tracking-wide flex items-center gap-2">
-          Kamaraj Nagar Flood Simulator
-          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 font-medium">2D Hydrodynamic Model</span>
-        </h1>
-        <p class="text-xs text-gray-400">Puducherry, India &bull; 5m Stamped DEM &bull; 26,236 Buildings Analyzed</p>
-      </div>
-    </div>
 
-    <!-- Quick KPIs -->
-    <div class="flex items-center space-x-6 text-xs mt-2 md:mt-0">
-      <div class="text-center">
-        <div class="text-gray-400">Storm Intensity</div>
-        <div class="text-sm font-semibold text-cyan-400" id="kpi-rain">85.0 mm/hr</div>
+      <div class="header-actions">
+        <button id="btn-toggle-drawer" class="btn-mono">
+          <span>Layers & Analysis</span>
+        </button>
       </div>
-      <div class="h-7 w-px bg-gray-700"></div>
-      <div class="text-center">
-        <div class="text-gray-400">Flooded Area</div>
-        <div class="text-sm font-semibold text-blue-400" id="kpi-area">266.8 ha</div>
-      </div>
-      <div class="h-7 w-px bg-gray-700"></div>
-      <div class="text-center">
-        <div class="text-gray-400">Inundated Buildings</div>
-        <div class="text-sm font-semibold text-amber-400" id="kpi-buildings">18,307 (69.8%)</div>
-      </div>
-      <div class="h-7 w-px bg-gray-700"></div>
-      <div class="text-center">
-        <div class="text-gray-400">Peak Water Depth</div>
-        <div class="text-sm font-semibold text-red-400" id="kpi-depth">13.99 m</div>
-      </div>
-    </div>
+    </header>
 
-    <div class="flex items-center space-x-2">
-      <button id="btn-toggle-panel" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 flex items-center gap-1.5 transition">
-        <i data-lucide="bar-chart-3" class="w-4 h-4 text-cyan-400"></i>
-        <span>Analytics & Layers</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Main Map View Area -->
-  <div class="relative flex-1 w-full h-full overflow-hidden">
-    <!-- Map Container -->
+    <!-- Map Viewport -->
     <div id="map"></div>
 
-    <!-- Floating Time Playback & Animation Controller (Bottom Center) -->
-    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-2xl glass-panel rounded-2xl p-4 shadow-2xl border border-gray-700/60">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center space-x-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-          <span class="text-xs uppercase font-bold tracking-wider text-cyan-400" id="time-badge">Simulation Timeline</span>
-          <span class="text-sm font-bold text-white ml-2" id="time-display">T = 10 min</span>
-          <span class="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-300 ml-2" id="phase-display">Peak Cloudburst</span>
+    <!-- Floating Monochrome Timeline Controller -->
+    <div class="timeline-container">
+      <div class="timeline-top">
+        <div class="time-status">
+          <span class="time-current" id="time-display">T = 10 min</span>
+          <span class="time-phase" id="phase-display">Incipient Runoff</span>
         </div>
-        <div class="flex items-center space-x-2 text-xs text-gray-400">
-          <span>Speed:</span>
-          <button class="speed-btn px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium" data-speed="1">1x</button>
-          <button class="speed-btn px-2 py-0.5 rounded bg-cyan-900/60 text-cyan-300 font-bold border border-cyan-500/40" data-speed="2">2x</button>
-          <button class="speed-btn px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium" data-speed="4">4x</button>
+        <div class="speed-group">
+          <button class="speed-btn" data-speed="1">1X</button>
+          <button class="speed-btn active" data-speed="2">2X</button>
+          <button class="speed-btn" data-speed="4">4X</button>
         </div>
       </div>
 
-      <!-- Scrubber Slider -->
-      <div class="flex items-center space-x-3 mb-2">
-        <button id="btn-play" class="w-9 h-9 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 transition shrink-0">
-          <i data-lucide="play" class="w-4 h-4 ml-0.5" id="play-icon"></i>
+      <div class="timeline-controls">
+        <button id="btn-play" class="btn-play" title="Play / Pause (Spacebar)">
+          <svg id="icon-play" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
         </button>
 
-        <div class="flex-1 flex flex-col">
-          <input type="range" id="time-slider" min="0" max="8" value="0" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer custom-slider accent-cyan-400">
-          <div class="flex justify-between text-[10px] text-gray-400 mt-1 px-1 font-mono">
+        <div class="slider-track-wrap">
+          <input type="range" id="time-slider" min="0" max="8" value="0" step="1" class="mono-range">
+          <div class="ticks-row">
             <span>10m</span>
             <span>20m</span>
             <span>30m</span>
-            <span class="text-cyan-400 font-bold">45m (Peak)</span>
+            <span>45m (Peak)</span>
             <span>60m</span>
             <span>75m</span>
             <span>90m</span>
@@ -157,225 +613,181 @@
             <span>120m</span>
           </div>
         </div>
-
-        <button id="btn-reset" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-300 transition shrink-0" title="Restart Timeline">
-          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-        </button>
       </div>
 
-      <!-- Water Surface Opacity -->
-      <div class="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-800">
-        <div class="flex items-center space-x-2">
-          <span>Water Depth Opacity:</span>
-          <input type="range" id="opacity-slider" min="0.1" max="1.0" value="0.80" step="0.05" class="w-24 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-400">
-          <span id="opacity-val" class="font-mono text-gray-300">80%</span>
+      <div class="timeline-footer">
+        <div class="opacity-control">
+          <span>Water Opacity:</span>
+          <input type="range" id="opacity-slider" min="0.1" max="1.0" value="0.80" step="0.05" class="mono-range" style="width: 70px;">
+          <span id="opacity-val" style="font-variant-numeric: tabular-nums;">80%</span>
         </div>
-        <div class="text-[11px] text-gray-400">
-          Drains Active: <span class="text-emerald-400 font-medium">30 mm/hr Conveyance</span>
+        <div>
+          Conveyance: <span style="color: var(--text-primary); font-weight: 500;">30 mm/h Active Drains</span>
         </div>
       </div>
     </div>
 
-    <!-- Floating Depth Legend (Bottom Left) -->
-    <div class="absolute bottom-6 left-6 z-20 glass-panel rounded-xl p-3 shadow-xl border border-gray-700/60 hidden md:block w-48 text-xs">
-      <div class="font-semibold text-gray-200 mb-2 flex items-center justify-between">
+    <!-- Depth Legend (Map Color Scale Retained) -->
+    <div class="legend-panel">
+      <div class="legend-title">
         <span>Water Depth ($h$)</span>
-        <i data-lucide="droplet" class="w-3.5 h-3.5 text-cyan-400"></i>
       </div>
-      <div class="space-y-1.5 font-mono text-[11px]">
-        <div class="flex items-center space-x-2">
-          <span class="w-4 h-3 rounded-sm bg-[#40c4ff]"></span>
-          <span class="text-gray-300">0.05 - 0.20 m (Shallow)</span>
+      <div class="legend-items">
+        <div class="legend-row">
+          <span class="swatch" style="background: #40c4ff;"></span>
+          <span>0.05 &ndash; 0.20 m</span>
         </div>
-        <div class="flex items-center space-x-2">
-          <span class="w-4 h-3 rounded-sm bg-[#2196f3]"></span>
-          <span class="text-gray-300">0.20 - 0.50 m (Ankle/Knee)</span>
+        <div class="legend-row">
+          <span class="swatch" style="background: #2196f3;"></span>
+          <span>0.20 &ndash; 0.50 m</span>
         </div>
-        <div class="flex items-center space-x-2">
-          <span class="w-4 h-3 rounded-sm bg-[#0d47a1]"></span>
-          <span class="text-gray-300">0.50 - 1.00 m (Waist)</span>
+        <div class="legend-row">
+          <span class="swatch" style="background: #0d47a1;"></span>
+          <span>0.50 &ndash; 1.00 m</span>
         </div>
-        <div class="flex items-center space-x-2">
-          <span class="w-4 h-3 rounded-sm bg-[#ff9800]"></span>
-          <span class="text-gray-300">1.00 - 2.00 m (Vehicles)</span>
+        <div class="legend-row">
+          <span class="swatch" style="background: #ff9800;"></span>
+          <span>1.00 &ndash; 2.00 m</span>
         </div>
-        <div class="flex items-center space-x-2">
-          <span class="w-4 h-3 rounded-sm bg-[#d50000]"></span>
-          <span class="text-gray-300">&gt; 2.00 m (Severe Ponding)</span>
+        <div class="legend-row">
+          <span class="swatch" style="background: #d50000;"></span>
+          <span>&gt; 2.00 m</span>
         </div>
       </div>
     </div>
 
-    <!-- Side Drawer: Layers & Analytics -->
-    <div id="side-drawer" class="absolute top-0 right-0 h-full w-96 max-w-full z-30 glass-panel border-l border-gray-800 p-5 flex flex-col overflow-y-auto transform transition-transform duration-300 translate-x-0">
-      <div class="flex items-center justify-between pb-3 border-b border-gray-800">
-        <h2 class="text-sm font-bold text-white flex items-center gap-2">
-          <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
-          Map Layers & Analytics
-        </h2>
-        <button id="btn-close-drawer" class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
+    <!-- Right Drawer: Layers & Analysis -->
+    <div id="side-drawer" class="drawer">
+      <div class="drawer-header">
+        <h2>Layers & Analysis</h2>
+        <button id="btn-close-drawer" class="btn-mono" style="padding: 4px 8px;">✕</button>
       </div>
 
-      <!-- Layer Toggles -->
-      <div class="mt-4">
-        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">GIS Overlays</h3>
-        <div class="space-y-2 text-xs">
-          <label class="flex items-center justify-between p-2 rounded-lg bg-gray-900/60 hover:bg-gray-800/60 border border-gray-800 cursor-pointer">
-            <span class="flex items-center gap-2 text-gray-200">
-              <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
-              2D Flood Inundation Surface
-            </span>
-            <input type="checkbox" id="layer-flood" checked class="rounded bg-gray-700 border-gray-600 text-cyan-500 focus:ring-0">
-          </label>
-
-          <label class="flex items-center justify-between p-2 rounded-lg bg-gray-900/60 hover:bg-gray-800/60 border border-gray-800 cursor-pointer">
-            <span class="flex items-center gap-2 text-gray-200">
-              <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
-              Stormwater Drain Network (59 channels)
-            </span>
-            <input type="checkbox" id="layer-drains" checked class="rounded bg-gray-700 border-gray-600 text-emerald-500 focus:ring-0">
-          </label>
-
-          <label class="flex items-center justify-between p-2 rounded-lg bg-gray-900/60 hover:bg-gray-800/60 border border-gray-800 cursor-pointer">
-            <span class="flex items-center gap-2 text-gray-200">
-              <span class="w-3 h-3 rounded-full bg-amber-400"></span>
-              Building Exposure (26,236 structures)
-            </span>
-            <input type="checkbox" id="layer-buildings" checked class="rounded bg-gray-700 border-gray-600 text-amber-500 focus:ring-0">
-          </label>
-
-          <label class="flex items-center justify-between p-2 rounded-lg bg-gray-900/60 hover:bg-gray-800/60 border border-gray-800 cursor-pointer">
-            <span class="flex items-center gap-2 text-gray-200">
-              <span class="w-3 h-3 rounded-full border border-red-500"></span>
-              Area of Interest (AOI Boundary)
-            </span>
-            <input type="checkbox" id="layer-aoi" checked class="rounded bg-gray-700 border-gray-600 text-red-500 focus:ring-0">
-          </label>
+      <div class="drawer-body">
+        <!-- GIS Layers -->
+        <div>
+          <div class="section-title">GIS Layers</div>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <span>2D Flood Surface (AOI Clipped)</span>
+              <input type="checkbox" id="layer-flood" checked>
+            </label>
+            <label class="toggle-item">
+              <span>AOI Boundary Mask (Dim Outer)</span>
+              <input type="checkbox" id="layer-mask" checked>
+            </label>
+            <label class="toggle-item">
+              <span>Storm Drains (59 Canals)</span>
+              <input type="checkbox" id="layer-drains" checked>
+            </label>
+            <label class="toggle-item">
+              <span>Buildings (8,910 in AOI)</span>
+              <input type="checkbox" id="layer-buildings" checked>
+            </label>
+          </div>
         </div>
-      </div>
 
-      <!-- Building Hazard Filter -->
-      <div class="mt-4">
-        <div class="flex items-center justify-between mb-1.5">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Building Hazard Filter</h3>
-          <span id="filtered-bldg-count" class="text-[11px] text-cyan-400 font-mono">26,236</span>
+        <!-- Building Hazard Filter -->
+        <div>
+          <div class="section-title" style="display: flex; justify-content: space-between;">
+            <span>Filter Buildings</span>
+            <span id="filtered-bldg-count" style="color: var(--text-primary); font-variant-numeric: tabular-nums;">8,910</span>
+          </div>
+          <select id="building-filter" class="select-mono">
+            <option value="ALL">All Buildings in AOI (8,910)</option>
+            <option value="FLOODED">All Flooded Buildings &bull; 7,150</option>
+            <option value="Severe (&gt;1.2m)">Severe Risk (&gt;1.2m) &bull; 158</option>
+            <option value="High (0.6-1.2m)">High Risk (0.6-1.2m) &bull; 1,471</option>
+            <option value="Moderate (0.3-0.6m)">Moderate Risk (0.3-0.6m) &bull; 2,752</option>
+            <option value="Minor (0.05-0.3m)">Minor Risk (0.05-0.3m) &bull; 2,769</option>
+            <option value="Safe / Dry">Safe / Dry Ground &bull; 1,760</option>
+          </select>
         </div>
-        <select id="building-filter" class="w-full text-xs bg-gray-900 border border-gray-700 rounded-lg p-2 text-gray-200 focus:outline-none focus:border-cyan-500">
-          <option value="ALL">Show All Buildings</option>
-          <option value="FLOODED">All Flooded Buildings (&gt; 0.05m)</option>
-          <option value="Severe (&gt;1.2m)">Severe Risk (&gt;1.2m) &bull; 849</option>
-          <option value="High (0.6-1.2m)">High Risk (0.6-1.2m) &bull; 4,020</option>
-          <option value="Moderate (0.3-0.6m)">Moderate Risk (0.3-0.6m) &bull; 6,386</option>
-          <option value="Minor (0.05-0.3m)">Minor Risk (0.05-0.3m) &bull; 7,052</option>
-          <option value="Safe / Dry">Safe / Dry Buildings &bull; 7,929</option>
-        </select>
-      </div>
 
-      <!-- Building Impact Distribution Chart -->
-      <div class="mt-5">
-        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Building Inundation Breakdown</h3>
-        <div class="space-y-2 text-xs">
-          <div>
-            <div class="flex justify-between text-gray-300 text-[11px] mb-1">
-              <span>Severe Risk (&gt;1.2m)</span>
-              <span class="font-mono text-red-400">849 (3.2%)</span>
+        <!-- Building Risk Breakdown (Monochrome Data Bars) -->
+        <div>
+          <div class="section-title">Inundation Breakdown (AOI)</div>
+          <div class="stat-bars">
+            <div class="stat-bar-item">
+              <div class="stat-bar-labels">
+                <span>Severe Risk (&gt;1.2m)</span>
+                <span>158 (1.8%)</span>
+              </div>
+              <div class="stat-bar-track">
+                <div class="stat-bar-fill" style="width: 1.8%;"></div>
+              </div>
             </div>
-            <div class="w-full bg-gray-800 rounded-full h-1.5">
-              <div class="bg-red-500 h-1.5 rounded-full" style="width: 3.2%"></div>
+
+            <div class="stat-bar-item">
+              <div class="stat-bar-labels">
+                <span>High Risk (0.6 - 1.2m)</span>
+                <span>1,471 (16.5%)</span>
+              </div>
+              <div class="stat-bar-track">
+                <div class="stat-bar-fill" style="width: 16.5%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-bar-item">
+              <div class="stat-bar-labels">
+                <span>Moderate Risk (0.3 - 0.6m)</span>
+                <span>2,752 (30.9%)</span>
+              </div>
+              <div class="stat-bar-track">
+                <div class="stat-bar-fill" style="width: 30.9%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-bar-item">
+              <div class="stat-bar-labels">
+                <span>Minor Risk (0.05 - 0.3m)</span>
+                <span>2,769 (31.1%)</span>
+              </div>
+              <div class="stat-bar-track">
+                <div class="stat-bar-fill" style="width: 31.1%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-bar-item">
+              <div class="stat-bar-labels">
+                <span>Safe / Dry Ground</span>
+                <span>1,760 (19.8%)</span>
+              </div>
+              <div class="stat-bar-track">
+                <div class="stat-bar-fill" style="width: 19.8%;"></div>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div>
-            <div class="flex justify-between text-gray-300 text-[11px] mb-1">
-              <span>High Risk (0.6 - 1.2m)</span>
-              <span class="font-mono text-amber-400">4,020 (15.3%)</span>
-            </div>
-            <div class="w-full bg-gray-800 rounded-full h-1.5">
-              <div class="bg-amber-500 h-1.5 rounded-full" style="width: 15.3%"></div>
-            </div>
-          </div>
-
-          <div>
-            <div class="flex justify-between text-gray-300 text-[11px] mb-1">
-              <span>Moderate Risk (0.3 - 0.6m)</span>
-              <span class="font-mono text-blue-400">6,386 (24.3%)</span>
-            </div>
-            <div class="w-full bg-gray-800 rounded-full h-1.5">
-              <div class="bg-blue-500 h-1.5 rounded-full" style="width: 24.3%"></div>
-            </div>
-          </div>
-
-          <div>
-            <div class="flex justify-between text-gray-300 text-[11px] mb-1">
-              <span>Minor Inundation (0.05 - 0.3m)</span>
-              <span class="font-mono text-cyan-400">7,052 (26.9%)</span>
-            </div>
-            <div class="w-full bg-gray-800 rounded-full h-1.5">
-              <div class="bg-cyan-500 h-1.5 rounded-full" style="width: 26.9%"></div>
-            </div>
-          </div>
-
-          <div>
-            <div class="flex justify-between text-gray-300 text-[11px] mb-1">
-              <span>Safe / Dry Ground</span>
-              <span class="font-mono text-emerald-400">7,929 (30.2%)</span>
-            </div>
-            <div class="w-full bg-gray-800 rounded-full h-1.5">
-              <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 30.2%"></div>
-            </div>
+        <!-- Reliable Basemaps Grid -->
+        <div>
+          <div class="section-title">Basemap</div>
+          <div class="basemap-grid">
+            <button class="basemap-btn active" data-style="dark">Esri Dark Gray</button>
+            <button class="basemap-btn" data-style="carto">CartoDB Dark</button>
+            <button class="basemap-btn" data-style="satellite">Satellite</button>
+            <button class="basemap-btn" data-style="osm">OpenStreetMap</button>
           </div>
         </div>
       </div>
 
-      <!-- Basemap Selector -->
-      <div class="mt-5">
-        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Basemap Style</h3>
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <button class="basemap-btn p-2 rounded-lg bg-cyan-900/40 border border-cyan-500/50 text-cyan-300 font-medium" data-style="dark">CartoDB Dark</button>
-          <button class="basemap-btn p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-300 hover:bg-gray-800" data-style="satellite">Satellite</button>
-          <button class="basemap-btn p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-300 hover:bg-gray-800" data-style="osm">OpenStreetMap</button>
-          <button class="basemap-btn p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-300 hover:bg-gray-800" data-style="light">CartoDB Light</button>
-        </div>
-      </div>
-
-      <!-- Export & GIS Section -->
-      <div class="mt-auto pt-5 border-t border-gray-800">
-        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Generated GIS Assets</h3>
-        <div class="space-y-1.5 text-xs">
-          <a href="simulation_outputs/flood_depth_max.tif" download class="flex items-center justify-between p-2 rounded-lg bg-gray-900/80 hover:bg-gray-800 text-gray-300 transition">
-            <span class="flex items-center gap-2">
-              <i data-lucide="file-down" class="w-4 h-4 text-cyan-400"></i>
-              flood_depth_max.tif
-            </span>
-            <span class="text-[10px] text-gray-500">GeoTIFF (894 KB)</span>
-          </a>
-          <a href="simulation_outputs/kamaraj_buildings_flooded.geojson" download class="flex items-center justify-between p-2 rounded-lg bg-gray-900/80 hover:bg-gray-800 text-gray-300 transition">
-            <span class="flex items-center gap-2">
-              <i data-lucide="database" class="w-4 h-4 text-amber-400"></i>
-              kamaraj_buildings_flooded.geojson
-            </span>
-            <span class="text-[10px] text-gray-500">GeoJSON (11 MB)</span>
-          </a>
-          <a href="simulation_outputs/simulation_stats.json" download class="flex items-center justify-between p-2 rounded-lg bg-gray-900/80 hover:bg-gray-800 text-gray-300 transition">
-            <span class="flex items-center gap-2">
-              <i data-lucide="code" class="w-4 h-4 text-emerald-400"></i>
-              simulation_stats.json
-            </span>
-            <span class="text-[10px] text-gray-500">JSON</span>
-          </a>
-        </div>
+      <div class="drawer-footer">
+        <a href="simulation_outputs/flood_depth_max.tif" download class="download-link">
+          <span>flood_depth_max.tif</span>
+          <span>GeoTIFF</span>
+        </a>
+        <a href="simulation_outputs/kamaraj_buildings_flooded.geojson" download class="download-link">
+          <span>kamaraj_buildings_flooded.geojson</span>
+          <span>GeoJSON</span>
+        </a>
       </div>
     </div>
   </div>
 
   <script>
-    // Initialize Lucide Icons
-    lucide.createIcons();
-
-    // Map Center on Kamaraj Nagar, Puducherry
-    const center = [11.9485, 79.8215];
+    // Kamaraj Nagar Center & Bounds
+    const center = [11.948531, 79.821595];
     const map = L.map('map', {
       center: center,
       zoom: 15,
@@ -385,68 +797,66 @@
 
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
-    // Basemaps
+    // Reliable Basemaps (Using Esri Dark Canvas as bulletproof default, Fastly CDN for CartoDB)
     const basemaps = {
-      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 }),
+      dark: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
+      carto: L.tileLayer('https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', { maxZoom: 19 }),
       satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
-      osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }),
-      light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 })
+      osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
     };
+
     basemaps.dark.addTo(map);
 
-    // Basemap selector handlers
     document.querySelectorAll('.basemap-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.basemap-btn').forEach(b => {
-          b.className = 'basemap-btn p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-300 hover:bg-gray-800';
-        });
-        btn.className = 'basemap-btn p-2 rounded-lg bg-cyan-900/40 border border-cyan-500/50 text-cyan-300 font-medium';
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.basemap-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
         const style = btn.getAttribute('data-style');
         Object.values(basemaps).forEach(l => map.removeLayer(l));
         basemaps[style].addTo(map);
       });
     });
 
-    // Drawer toggle
+    // Drawer handling
     const drawer = document.getElementById('side-drawer');
-    document.getElementById('btn-toggle-panel').addEventListener('click', () => {
-      drawer.classList.toggle('translate-x-full');
+    document.getElementById('btn-toggle-drawer').addEventListener('click', () => {
+      drawer.classList.toggle('open');
     });
     document.getElementById('btn-close-drawer').addEventListener('click', () => {
-      drawer.classList.add('translate-x-full');
+      drawer.classList.remove('open');
     });
 
-    // Color ramp mapping
-    function getDepthColor(val) {
-      if (val < 0.05) return null;
-      if (val < 0.20) return [64, 196, 255, 170];   // Cyan
-      if (val < 0.50) return [33, 150, 243, 200];   // Sky Blue
-      if (val < 1.00) return [13, 71, 161, 220];    // Deep Blue
-      if (val < 2.00) return [255, 152, 0, 230];    // Amber
-      return [213, 0, 0, 245];                       // Crimson Red
-    }
+    // Discrete Simulation Snapshots
+    const snapshots = [10, 20, 30, 45, 60, 75, 90, 105, 120];
+    const phases = {
+      10: { rain: '85.0 mm/h', phase: 'Incipient Runoff' },
+      20: { rain: '85.0 mm/h', phase: 'Overland Flow' },
+      30: { rain: '85.0 mm/h', phase: 'Street Concentration' },
+      45: { rain: '85.0 mm/h', phase: 'Peak Cloudburst' },
+      60: { rain: '52.5 mm/h', phase: 'Peak Inundation Extent' },
+      75: { rain: '20.0 mm/h', phase: 'Storm Recession' },
+      90: { rain: '0.0 mm/h', phase: 'Drainage & Outfall' },
+      105: { rain: '0.0 mm/h', phase: 'Canal Discharge' },
+      120: { rain: '0.0 mm/h', phase: 'Residual Depression Storage' }
+    };
 
     let floodData = null;
     let floodOverlay = null;
     let currentFrameIndex = 0;
     let isPlaying = false;
     let playInterval = null;
-    let playSpeed = 2; // default 2x
+    let playSpeed = 2;
 
-    const snapshots = [10, 20, 30, 45, 60, 75, 90, 105, 120];
-    const phases = {
-      10: { rain: '85.0 mm/hr', phase: 'Incipient Runoff', desc: 'Drainage inlets overwhelmed' },
-      20: { rain: '85.0 mm/hr', phase: 'Active Street Flow', desc: 'Overland flow in street corridors' },
-      30: { rain: '85.0 mm/hr', phase: 'Widespread Ponding', desc: 'Depressions filling rapidly' },
-      45: { rain: '85.0 mm/hr', phase: 'Peak Cloudburst', desc: 'Maximum rain intensity' },
-      60: { rain: '52.5 mm/hr', phase: 'Peak Flood Extent', desc: 'Maximum domain inundation (157 ha)' },
-      75: { rain: '20.0 mm/hr', phase: 'Receding Storm', desc: 'Drains clearing shallow water' },
-      90: { rain: '0.0 mm/hr', phase: 'Post-Storm Drainage', desc: 'Canals conveying outfall' },
-      105: { rain: '0.0 mm/hr', phase: 'Canal Outflow', desc: 'Recession in upper streets' },
-      120: { rain: '0.0 mm/hr', phase: 'Residual Ponding', desc: 'Deep depression storage' }
-    };
+    // Color ramp mapping (Retained for hydrologic clarity on map)
+    function getDepthColor(val) {
+      if (val < 0.05) return null;
+      if (val < 0.20) return [64, 196, 255, 180];
+      if (val < 0.50) return [33, 150, 243, 210];
+      if (val < 1.00) return [13, 71, 161, 230];
+      if (val < 2.00) return [255, 152, 0, 240];
+      return [213, 0, 0, 250];
+    }
 
-    // Offscreen Canvas for Dynamic Flood Surface Rendering
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
@@ -496,7 +906,7 @@
         }
       }
       
-      // Update UI labels
+      // Update Monochrome UI labels
       const timeMin = snapshots[currentFrameIndex];
       const info = phases[timeMin];
       document.getElementById('time-display').innerText = `T = ${timeMin} min`;
@@ -505,7 +915,6 @@
       document.getElementById('time-slider').value = currentFrameIndex;
     }
 
-    // Playback loop
     function stepForward() {
       currentFrameIndex = (currentFrameIndex + 1) % snapshots.length;
       renderFloodFrame(snapshots[currentFrameIndex].toString());
@@ -513,37 +922,35 @@
 
     function togglePlay() {
       isPlaying = !isPlaying;
-      const playIcon = document.getElementById('play-icon');
+      const playBtn = document.getElementById('btn-play');
       if (isPlaying) {
-        playIcon.setAttribute('data-lucide', 'pause');
-        lucide.createIcons();
+        playBtn.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+        `;
         playInterval = setInterval(stepForward, 1200 / playSpeed);
       } else {
-        playIcon.setAttribute('data-lucide', 'play');
-        lucide.createIcons();
+        playBtn.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        `;
         clearInterval(playInterval);
       }
     }
 
     document.getElementById('btn-play').addEventListener('click', togglePlay);
-    document.getElementById('btn-reset').addEventListener('click', () => {
-      currentFrameIndex = 0;
-      renderFloodFrame(snapshots[0].toString());
-      if (isPlaying) togglePlay();
-    });
-
     document.getElementById('time-slider').addEventListener('input', (e) => {
       currentFrameIndex = parseInt(e.target.value);
       renderFloodFrame(snapshots[currentFrameIndex].toString());
     });
 
-    // Speed buttons
     document.querySelectorAll('.speed-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.speed-btn').forEach(b => {
-          b.className = 'speed-btn px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium';
-        });
-        btn.className = 'speed-btn px-2 py-0.5 rounded bg-cyan-900/60 text-cyan-300 font-bold border border-cyan-500/40';
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
         playSpeed = parseInt(btn.getAttribute('data-speed'));
         if (isPlaying) {
           clearInterval(playInterval);
@@ -552,73 +959,89 @@
       });
     });
 
-    // Opacity slider
     document.getElementById('opacity-slider').addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       document.getElementById('opacity-val').innerText = `${Math.round(val * 100)}%`;
       if (floodOverlay) floodOverlay.setOpacity(val);
     });
 
-    // Layer check handlers
     document.getElementById('layer-flood').addEventListener('change', (e) => {
       if (!floodOverlay) return;
       if (e.target.checked) floodOverlay.addTo(map);
       else map.removeLayer(floodOverlay);
     });
 
-    // Load GeoJSON Layers
-    let aoiLayer = null;
-    let drainsLayer = null;
-    let buildingsLayer = null;
-    let allBuildings = [];
+    // Inverted Mask: Dim everything outside AOI Boundary
+    let aoiMaskLayer = null;
+    let aoiLineLayer = null;
 
-    // Load AOI Boundary
     fetch('simulation_outputs/aoi.geojson')
       .then(res => res.json())
       .then(data => {
-        aoiLayer = L.geoJSON(data, {
-          style: {
-            color: '#ef4444',
-            weight: 2,
-            dashArray: '6, 6',
-            fillColor: '#ef4444',
-            fillOpacity: 0.03
-          }
-        }).addTo(map);
-        map.fitBounds(aoiLayer.getBounds(), { padding: [30, 30] });
-      })
-      .catch(err => console.error('Error loading AOI:', err));
+        const geom = data.features[0].geometry;
+        const aoiCoords = geom.coordinates[0].map(coord => [coord[1], coord[0]]);
 
-    // Load Stormwater Drains
+        // Inverted polygon (dim outside)
+        const outerWorld = [
+          [-90, -180],
+          [-90, 180],
+          [90, 180],
+          [90, -180]
+        ];
+
+        aoiMaskLayer = L.polygon([outerWorld, aoiCoords], {
+          fillColor: '#000000',
+          fillOpacity: 0.72,
+          stroke: false,
+          interactive: false
+        }).addTo(map);
+
+        // Crisp hairline dashed boundary line
+        aoiLineLayer = L.polygon(aoiCoords, {
+          color: '#ffffff',
+          weight: 1.5,
+          dashArray: '4, 4',
+          fill: false,
+          interactive: false
+        }).addTo(map);
+
+        map.fitBounds(aoiLineLayer.getBounds(), { padding: [30, 30] });
+      });
+
+    document.getElementById('layer-mask').addEventListener('change', (e) => {
+      if (!aoiMaskLayer) return;
+      if (e.target.checked) {
+        aoiMaskLayer.addTo(map);
+        if (aoiLineLayer) aoiLineLayer.addTo(map);
+      } else {
+        map.removeLayer(aoiMaskLayer);
+        if (aoiLineLayer) map.removeLayer(aoiLineLayer);
+      }
+    });
+
+    // Storm Drains Layer
+    let drainsLayer = null;
     fetch('simulation_outputs/drains.geojson')
       .then(res => res.json())
       .then(data => {
         drainsLayer = L.geoJSON(data, {
           style: {
-            color: '#10b981',
-            weight: 2.5,
-            opacity: 0.85
+            color: '#ffffff',
+            weight: 2,
+            opacity: 0.9,
+            dashArray: '3, 3'
           },
           onEachFeature: (feature, layer) => {
             layer.bindPopup(`
-              <div class="text-xs">
-                <div class="font-bold text-emerald-400 mb-1">Stormwater Drainage Canal</div>
-                <div class="text-gray-300"><b>Type:</b> ${feature.properties.waterway || 'drain'}</div>
-                <div class="text-gray-300"><b>Tunnel/Covered:</b> ${feature.properties.tunnel || 'no'}</div>
-                <div class="text-gray-400 text-[10px] mt-1">Conveyance rate: 30 mm/hr equivalent</div>
+              <div style="font-size: 11px; line-height: 1.5;">
+                <div style="font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Stormwater Drain</div>
+                <div><b>Type:</b> ${feature.properties.waterway || 'drain'}</div>
+                <div><b>Conveyance:</b> 30 mm/h capacity</div>
               </div>
             `);
           }
         }).addTo(map);
-      })
-      .catch(err => console.error('Error loading drains:', err));
-
-    // Toggle AOI and Drains
-    document.getElementById('layer-aoi').addEventListener('change', (e) => {
-      if (!aoiLayer) return;
-      if (e.target.checked) aoiLayer.addTo(map);
-      else map.removeLayer(aoiLayer);
-    });
+      });
 
     document.getElementById('layer-drains').addEventListener('change', (e) => {
       if (!drainsLayer) return;
@@ -626,16 +1049,17 @@
       else map.removeLayer(drainsLayer);
     });
 
-    // High-Performance Canvas Layer for 26,236 Buildings
+    // Building Points Layer (8,910 in AOI)
     const buildingsCanvasLayer = L.layerGroup().addTo(map);
+    let allBuildings = [];
 
     function getBuildingColor(risk) {
       switch(risk) {
-        case 'Severe (>1.2m)': return '#ef4444';
-        case 'High (0.6-1.2m)': return '#f59e0b';
-        case 'Moderate (0.3-0.6m)': return '#3b82f6';
-        case 'Minor (0.05-0.3m)': return '#06b6d4';
-        default: return '#10b981';
+        case 'Severe (>1.2m)': return '#d50000';
+        case 'High (0.6-1.2m)': return '#ff9800';
+        case 'Moderate (0.3-0.6m)': return '#2196f3';
+        case 'Minor (0.05-0.3m)': return '#40c4ff';
+        default: return '#555555';
       }
     }
 
@@ -649,36 +1073,32 @@
         return b.risk === filterType;
       });
 
-      document.getElementById('filtered-bldg-count').innerText = `${filtered.length.toLocaleString()} buildings`;
+      document.getElementById('filtered-bldg-count').innerText = filtered.length.toLocaleString();
 
-      // Draw as lightweight circle markers
-      // For performance on 26k points, we plot with radius 2.5
       filtered.forEach(b => {
         const marker = L.circleMarker([b.lat, b.lon], {
           radius: b.flood_m >= 0.6 ? 3.5 : 2.5,
           fillColor: getBuildingColor(b.risk),
-          color: '#000',
+          color: '#000000',
           weight: 0.5,
           opacity: 0.8,
-          fillOpacity: 0.85
+          fillOpacity: 0.9
         });
 
         marker.bindPopup(`
-          <div class="text-xs space-y-1">
-            <div class="font-bold text-white flex items-center justify-between border-b border-gray-700 pb-1">
-              <span>Building ${b.bldg_id || b.id.slice(0, 10)}</span>
-              <span class="px-1.5 py-0.2 rounded text-[10px] font-semibold" style="color: ${getBuildingColor(b.risk)}">${b.risk}</span>
+          <div style="font-size: 11px; line-height: 1.5;">
+            <div style="font-weight: 600; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 6px;">
+              Building ${b.bldg_id || b.id.slice(0, 8)}
             </div>
-            <div class="grid grid-cols-2 gap-x-2 pt-1 text-gray-300">
-              <div>Peak Flood Depth:</div>
-              <div class="font-mono font-bold text-white">${b.flood_m.toFixed(2)} m</div>
-              <div>Ground Elevation:</div>
-              <div class="font-mono text-gray-300">${b.elev_m.toFixed(2)} m</div>
-              <div>Building Height:</div>
-              <div class="font-mono text-gray-300">${b.height_m.toFixed(1)} m</div>
-            </div>
-            <div class="text-[10px] text-gray-400 italic pt-1 border-t border-gray-800">
-              ${b.flood_m >= 0.6 ? '⚠️ Priority Evacuation & Sandbagging Zone' : b.flood_m >= 0.05 ? '⚠️ Ground-level water ingress hazard' : '✅ Ground elevation above flood line'}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+              <span style="color: #888;">Flood Depth:</span>
+              <span style="font-weight: 600; font-variant-numeric: tabular-nums;">${b.flood_m.toFixed(2)} m</span>
+              <span style="color: #888;">Risk Tier:</span>
+              <span>${b.risk}</span>
+              <span style="color: #888;">Ground Elev:</span>
+              <span style="font-variant-numeric: tabular-nums;">${b.elev_m.toFixed(2)} m</span>
+              <span style="color: #888;">Height:</span>
+              <span style="font-variant-numeric: tabular-nums;">${b.height_m.toFixed(1)} m</span>
             </div>
           </div>
         `);
@@ -687,14 +1107,12 @@
       });
     }
 
-    // Load Buildings Summary
     fetch('simulation_outputs/buildings_summary.json')
       .then(res => res.json())
       .then(data => {
         allBuildings = data;
         renderBuildings('ALL');
-      })
-      .catch(err => console.error('Error loading buildings summary:', err));
+      });
 
     document.getElementById('building-filter').addEventListener('change', (e) => {
       renderBuildings(e.target.value);
@@ -708,16 +1126,15 @@
       }
     });
 
-    // Load Flood Animation Frames
+    // Load Simulation Animation Data
     fetch('simulation_outputs/web_flood_frames.json')
       .then(res => res.json())
       .then(data => {
         floodData = data;
         renderFloodFrame('10');
-      })
-      .catch(err => console.error('Error loading flood frames:', err));
+      });
 
-    // Keyboard shortcut: Spacebar for play/pause
+    // Keyboard Spacebar play/pause
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
         e.preventDefault();
@@ -727,4 +1144,3 @@
   </script>
 </body>
 </html>
-

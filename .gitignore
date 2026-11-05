@@ -18,3 +18,4 @@ venv/
 # QGIS lock files
 *.qgz~
 *.qgs~
+
