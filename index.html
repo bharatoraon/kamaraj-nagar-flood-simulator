@@ -46,7 +46,7 @@
       position: relative;
     }
 
-    /* Top Navigation Header (Pure Monochrome) */
+    /* Top Navigation Header (Strictly Monochrome) */
     header {
       background: var(--bg-primary);
       border-bottom: 1px solid var(--border-subtle);
@@ -137,17 +137,6 @@
     .btn-mono:hover {
       background: var(--bg-hover);
       border-color: var(--border-strong);
-    }
-
-    .btn-mono-primary {
-      background: var(--text-primary);
-      color: var(--bg-primary);
-      border: 1px solid var(--text-primary);
-      font-weight: 600;
-    }
-
-    .btn-mono-primary:hover {
-      background: #e5e5e5;
     }
 
     /* Map Viewport */
@@ -317,9 +306,6 @@
       color: var(--text-secondary);
       font-weight: 600;
       margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
 
     .legend-items {
@@ -474,7 +460,6 @@
 
     .basemap-grid {
       display: grid;
-      grid-template-cols: 1fr 1fr;
       grid-template-columns: 1fr 1fr;
       gap: 6px;
     }
@@ -681,9 +666,18 @@
               <input type="checkbox" id="layer-drains" checked>
             </label>
             <label class="toggle-item">
-              <span>Buildings (8,910 in AOI)</span>
+              <span>Building Footprints (8,910 in AOI)</span>
               <input type="checkbox" id="layer-buildings" checked>
             </label>
+          </div>
+        </div>
+
+        <!-- Building Rendering Mode -->
+        <div>
+          <div class="section-title">Building Display Style</div>
+          <div class="basemap-grid">
+            <button class="basemap-btn active" id="btn-mode-poly">Polygon Footprints</button>
+            <button class="basemap-btn" id="btn-mode-point">Centroid Points</button>
           </div>
         </div>
 
@@ -760,7 +754,7 @@
           </div>
         </div>
 
-        <!-- Reliable Basemaps Grid -->
+        <!-- Basemaps Grid -->
         <div>
           <div class="section-title">Basemap</div>
           <div class="basemap-grid">
@@ -777,8 +771,8 @@
           <span>flood_depth_max.tif</span>
           <span>GeoTIFF</span>
         </a>
-        <a href="simulation_outputs/kamaraj_buildings_flooded.geojson" download class="download-link">
-          <span>kamaraj_buildings_flooded.geojson</span>
+        <a href="simulation_outputs/kamaraj_buildings_clipped.geojson" download class="download-link">
+          <span>kamaraj_buildings_clipped.geojson</span>
           <span>GeoJSON</span>
         </a>
       </div>
@@ -786,6 +780,9 @@
   </div>
 
   <script>
+    // Timestamp for cache-busting
+    const CACHE_BUST = 'v=' + Date.now();
+
     // Kamaraj Nagar Center & Bounds
     const center = [11.948531, 79.821595];
     const map = L.map('map', {
@@ -797,7 +794,7 @@
 
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
-    // Reliable Basemaps (Using Esri Dark Canvas as bulletproof default, Fastly CDN for CartoDB)
+    // Reliable Basemaps (Esri Dark default, Fastly Carto, Satellite, OSM)
     const basemaps = {
       dark: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
       carto: L.tileLayer('https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', { maxZoom: 19 }),
@@ -807,9 +804,9 @@
 
     basemaps.dark.addTo(map);
 
-    document.querySelectorAll('.basemap-btn').forEach(btn => {
+    document.querySelectorAll('.basemap-btn[data-style]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.basemap-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.basemap-btn[data-style]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const style = btn.getAttribute('data-style');
         Object.values(basemaps).forEach(l => map.removeLayer(l));
@@ -826,7 +823,7 @@
       drawer.classList.remove('open');
     });
 
-    // Discrete Simulation Snapshots
+    // Simulation Snapshots
     const snapshots = [10, 20, 30, 45, 60, 75, 90, 105, 120];
     const phases = {
       10: { rain: '85.0 mm/h', phase: 'Incipient Runoff' },
@@ -847,7 +844,6 @@
     let playInterval = null;
     let playSpeed = 2;
 
-    // Color ramp mapping (Retained for hydrologic clarity on map)
     function getDepthColor(val) {
       if (val < 0.05) return null;
       if (val < 0.20) return [64, 196, 255, 180];
@@ -906,7 +902,6 @@
         }
       }
       
-      // Update Monochrome UI labels
       const timeMin = snapshots[currentFrameIndex];
       const info = phases[timeMin];
       document.getElementById('time-display').innerText = `T = ${timeMin} min`;
@@ -975,13 +970,12 @@
     let aoiMaskLayer = null;
     let aoiLineLayer = null;
 
-    fetch('simulation_outputs/aoi.geojson')
+    fetch('simulation_outputs/aoi.geojson?' + CACHE_BUST)
       .then(res => res.json())
       .then(data => {
         const geom = data.features[0].geometry;
         const aoiCoords = geom.coordinates[0].map(coord => [coord[1], coord[0]]);
 
-        // Inverted polygon (dim outside)
         const outerWorld = [
           [-90, -180],
           [-90, 180],
@@ -991,12 +985,11 @@
 
         aoiMaskLayer = L.polygon([outerWorld, aoiCoords], {
           fillColor: '#000000',
-          fillOpacity: 0.72,
+          fillOpacity: 0.75,
           stroke: false,
           interactive: false
         }).addTo(map);
 
-        // Crisp hairline dashed boundary line
         aoiLineLayer = L.polygon(aoiCoords, {
           color: '#ffffff',
           weight: 1.5,
@@ -1021,7 +1014,7 @@
 
     // Storm Drains Layer
     let drainsLayer = null;
-    fetch('simulation_outputs/drains.geojson')
+    fetch('simulation_outputs/drains.geojson?' + CACHE_BUST)
       .then(res => res.json())
       .then(data => {
         drainsLayer = L.geoJSON(data, {
@@ -1049,9 +1042,12 @@
       else map.removeLayer(drainsLayer);
     });
 
-    // Building Points Layer (8,910 in AOI)
-    const buildingsCanvasLayer = L.layerGroup().addTo(map);
-    let allBuildings = [];
+    // Real Building Footprints (Vector Polygons via HTML5 Canvas Renderer)
+    const canvasRenderer = L.canvas({ padding: 0.5 });
+    let buildingsPolygonLayer = null;
+    let buildingsPointLayer = L.layerGroup();
+    let rawBuildingsGeoJSON = null;
+    let buildingDisplayMode = 'polygon'; // 'polygon' or 'point'
 
     function getBuildingColor(risk) {
       switch(risk) {
@@ -1063,78 +1059,149 @@
       }
     }
 
-    function renderBuildings(filterType) {
-      buildingsCanvasLayer.clearLayers();
-      if (!document.getElementById('layer-buildings').checked) return;
+    function renderBuildings() {
+      if (buildingsPolygonLayer) map.removeLayer(buildingsPolygonLayer);
+      buildingsPointLayer.clearLayers();
+      if (map.hasLayer(buildingsPointLayer)) map.removeLayer(buildingsPointLayer);
 
-      const filtered = allBuildings.filter(b => {
-        if (filterType === 'ALL') return true;
-        if (filterType === 'FLOODED') return b.flood_m >= 0.05;
-        return b.risk === filterType;
-      });
+      if (!document.getElementById('layer-buildings').checked || !rawBuildingsGeoJSON) return;
 
-      document.getElementById('filtered-bldg-count').innerText = filtered.length.toLocaleString();
+      const filterType = document.getElementById('building-filter').value;
 
-      filtered.forEach(b => {
-        const marker = L.circleMarker([b.lat, b.lon], {
-          radius: b.flood_m >= 0.6 ? 3.5 : 2.5,
-          fillColor: getBuildingColor(b.risk),
-          color: '#000000',
-          weight: 0.5,
-          opacity: 0.8,
-          fillOpacity: 0.9
+      if (buildingDisplayMode === 'polygon') {
+        // High-performance Canvas Polygon Renderer
+        buildingsPolygonLayer = L.geoJSON(rawBuildingsGeoJSON, {
+          renderer: canvasRenderer,
+          filter: function(feature) {
+            const r = feature.properties.flood_risk;
+            const f = feature.properties.flood_m;
+            if (filterType === 'ALL') return true;
+            if (filterType === 'FLOODED') return f >= 0.05;
+            return r === filterType;
+          },
+          style: function(feature) {
+            const risk = feature.properties.flood_risk;
+            return {
+              fillColor: getBuildingColor(risk),
+              fillOpacity: 0.88,
+              weight: 0.6,
+              color: '#000000',
+              opacity: 0.95
+            };
+          },
+          onEachFeature: function(feature, layer) {
+            const p = feature.properties;
+            layer.bindPopup(`
+              <div style="font-size: 11px; line-height: 1.5;">
+                <div style="font-weight: 600; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 6px;">
+                  Building ${p.bldg_id || p.id}
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                  <span style="color: #888;">Flood Depth:</span>
+                  <span style="font-weight: 600; font-variant-numeric: tabular-nums;">${p.flood_m.toFixed(2)} m</span>
+                  <span style="color: #888;">Risk Tier:</span>
+                  <span>${p.flood_risk}</span>
+                  <span style="color: #888;">Ground Elev:</span>
+                  <span style="font-variant-numeric: tabular-nums;">${p.elev_m.toFixed(2)} m</span>
+                  <span style="color: #888;">Height:</span>
+                  <span style="font-variant-numeric: tabular-nums;">${p.height_m.toFixed(1)} m</span>
+                </div>
+              </div>
+            `);
+          }
+        }).addTo(map);
+      } else {
+        // Centroid Point Renderer
+        rawBuildingsGeoJSON.features.forEach(feature => {
+          const p = feature.properties;
+          if (filterType !== 'ALL') {
+            if (filterType === 'FLOODED' && p.flood_m < 0.05) return;
+            if (filterType !== 'FLOODED' && p.flood_risk !== filterType) return;
+          }
+          // Compute simple centroid
+          const geom = feature.geometry;
+          let lat = 0, lon = 0, n = 0;
+          const coords = geom.type === 'MultiPolygon' ? geom.coordinates[0][0] : geom.coordinates[0];
+          coords.forEach(pt => { lon += pt[0]; lat += pt[1]; n++; });
+          lat /= n; lon /= n;
+
+          const marker = L.circleMarker([lat, lon], {
+            renderer: canvasRenderer,
+            radius: p.flood_m >= 0.6 ? 3.5 : 2.5,
+            fillColor: getBuildingColor(p.flood_risk),
+            color: '#000000',
+            weight: 0.5,
+            opacity: 0.8,
+            fillOpacity: 0.9
+          });
+
+          marker.bindPopup(`
+            <div style="font-size: 11px; line-height: 1.5;">
+              <div style="font-weight: 600; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 6px;">
+                Building ${p.bldg_id || p.id}
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                <span style="color: #888;">Flood Depth:</span>
+                <span style="font-weight: 600;">${p.flood_m.toFixed(2)} m</span>
+                <span style="color: #888;">Risk Tier:</span>
+                <span>${p.flood_risk}</span>
+                <span style="color: #888;">Ground Elev:</span>
+                <span>${p.elev_m.toFixed(2)} m</span>
+                <span style="color: #888;">Height:</span>
+                <span>${p.height_m.toFixed(1)} m</span>
+              </div>
+            </div>
+          `);
+          buildingsPointLayer.addLayer(marker);
         });
+        buildingsPointLayer.addTo(map);
+      }
 
-        marker.bindPopup(`
-          <div style="font-size: 11px; line-height: 1.5;">
-            <div style="font-weight: 600; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 6px;">
-              Building ${b.bldg_id || b.id.slice(0, 8)}
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
-              <span style="color: #888;">Flood Depth:</span>
-              <span style="font-weight: 600; font-variant-numeric: tabular-nums;">${b.flood_m.toFixed(2)} m</span>
-              <span style="color: #888;">Risk Tier:</span>
-              <span>${b.risk}</span>
-              <span style="color: #888;">Ground Elev:</span>
-              <span style="font-variant-numeric: tabular-nums;">${b.elev_m.toFixed(2)} m</span>
-              <span style="color: #888;">Height:</span>
-              <span style="font-variant-numeric: tabular-nums;">${b.height_m.toFixed(1)} m</span>
-            </div>
-          </div>
-        `);
-
-        buildingsCanvasLayer.addLayer(marker);
-      });
+      // Update count
+      const activeCount = rawBuildingsGeoJSON.features.filter(f => {
+        const p = f.properties;
+        if (filterType === 'ALL') return true;
+        if (filterType === 'FLOODED') return p.flood_m >= 0.05;
+        return p.flood_risk === filterType;
+      }).length;
+      document.getElementById('filtered-bldg-count').innerText = activeCount.toLocaleString();
     }
 
-    fetch('simulation_outputs/buildings_summary.json')
+    // Load Physically Clipped Buildings GeoJSON (Strictly inside AOI)
+    fetch('simulation_outputs/kamaraj_buildings_clipped.geojson?' + CACHE_BUST)
       .then(res => res.json())
       .then(data => {
-        allBuildings = data;
-        renderBuildings('ALL');
+        rawBuildingsGeoJSON = data;
+        renderBuildings();
       });
 
-    document.getElementById('building-filter').addEventListener('change', (e) => {
-      renderBuildings(e.target.value);
+    // Display mode buttons
+    document.getElementById('btn-mode-poly').addEventListener('click', () => {
+      document.getElementById('btn-mode-poly').classList.add('active');
+      document.getElementById('btn-mode-point').classList.remove('active');
+      buildingDisplayMode = 'polygon';
+      renderBuildings();
     });
 
-    document.getElementById('layer-buildings').addEventListener('change', (e) => {
-      if (e.target.checked) {
-        renderBuildings(document.getElementById('building-filter').value);
-      } else {
-        buildingsCanvasLayer.clearLayers();
-      }
+    document.getElementById('btn-mode-point').addEventListener('click', () => {
+      document.getElementById('btn-mode-point').classList.add('active');
+      document.getElementById('btn-mode-poly').classList.remove('active');
+      buildingDisplayMode = 'point';
+      renderBuildings();
     });
 
-    // Load Simulation Animation Data
-    fetch('simulation_outputs/web_flood_frames.json')
+    document.getElementById('building-filter').addEventListener('change', renderBuildings);
+    document.getElementById('layer-buildings').addEventListener('change', renderBuildings);
+
+    // Load Simulation Animation Data (Clipped to AOI)
+    fetch('simulation_outputs/web_flood_frames.json?' + CACHE_BUST)
       .then(res => res.json())
       .then(data => {
         floodData = data;
         renderFloodFrame('10');
       });
 
-    // Keyboard Spacebar play/pause
+    // Spacebar play/pause
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
         e.preventDefault();
