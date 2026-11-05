@@ -638,6 +638,10 @@
           <span class="swatch" style="background: #d50000;"></span>
           <span>&gt; 2.00 m</span>
         </div>
+        <div class="legend-row" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);">
+          <span style="display: inline-block; width: 12px; height: 3px; background: #0284c7; flex-shrink: 0;"></span>
+          <span>Drainage Canal</span>
+        </div>
       </div>
     </div>
 
@@ -662,7 +666,10 @@
               <input type="checkbox" id="layer-mask" checked>
             </label>
             <label class="toggle-item">
-              <span>Storm Drains (59 Canals)</span>
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0284c7;"></span>
+                <span>Storm Drains & Canals (59)</span>
+              </span>
               <input type="checkbox" id="layer-drains" checked>
             </label>
             <label class="toggle-item">
@@ -754,14 +761,13 @@
           </div>
         </div>
 
-        <!-- Basemaps Grid -->
+        <!-- Basemaps Grid (Sequence: Satellite, OpenStreetMap, Esri Dark Grey) -->
         <div>
           <div class="section-title">Basemap</div>
-          <div class="basemap-grid">
-            <button class="basemap-btn active" data-style="dark">Esri Dark Gray</button>
-            <button class="basemap-btn" data-style="carto">CartoDB Dark</button>
-            <button class="basemap-btn" data-style="satellite">Satellite</button>
+          <div class="basemap-grid" style="grid-template-columns: 1fr; gap: 5px;">
+            <button class="basemap-btn active" data-style="satellite">Satellite Imagery</button>
             <button class="basemap-btn" data-style="osm">OpenStreetMap</button>
+            <button class="basemap-btn" data-style="dark">Esri Dark Grey</button>
           </div>
         </div>
       </div>
@@ -794,15 +800,15 @@
 
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
-    // Reliable Basemaps (Esri Dark default, Fastly Carto, Satellite, OSM)
+    // Basemaps (Sequence: Satellite, OpenStreetMap, Esri Dark Grey)
     const basemaps = {
-      dark: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
-      carto: L.tileLayer('https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', { maxZoom: 19 }),
       satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
-      osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
+      osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }),
+      dark: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
     };
 
-    basemaps.dark.addTo(map);
+    // Default to Satellite as requested
+    basemaps.satellite.addTo(map);
 
     document.querySelectorAll('.basemap-btn[data-style]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1012,22 +1018,21 @@
       }
     });
 
-    // Storm Drains Layer
+    // Storm Drains Layer (Canal Blue Styling)
     let drainsLayer = null;
     fetch('simulation_outputs/drains.geojson?' + CACHE_BUST)
       .then(res => res.json())
       .then(data => {
         drainsLayer = L.geoJSON(data, {
           style: {
-            color: '#ffffff',
-            weight: 2,
-            opacity: 0.9,
-            dashArray: '3, 3'
+            color: '#0284c7', // Canal blue
+            weight: 3.0,
+            opacity: 0.95
           },
           onEachFeature: (feature, layer) => {
             layer.bindPopup(`
               <div style="font-size: 11px; line-height: 1.5;">
-                <div style="font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Stormwater Drain</div>
+                <div style="font-weight: 600; text-transform: uppercase; color: #0284c7; margin-bottom: 4px;">Stormwater Drainage Canal</div>
                 <div><b>Type:</b> ${feature.properties.waterway || 'drain'}</div>
                 <div><b>Conveyance:</b> 30 mm/h capacity</div>
               </div>
