@@ -271,8 +271,8 @@
 
     .timeline-footer {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 8px;
       margin-top: 10px;
       padding-top: 8px;
       border-top: 1px solid var(--border-subtle);
@@ -280,10 +280,74 @@
       color: var(--text-secondary);
     }
 
+    .timeline-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
     .opacity-control {
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    /* Rainfall Input Control */
+    .rainfall-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .rainfall-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .rainfall-value-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+    }
+
+    input[type=number].rain-input {
+      width: 54px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      padding: 3px 6px;
+      outline: none;
+      text-align: right;
+      -moz-appearance: textfield;
+    }
+
+    input[type=number].rain-input::-webkit-outer-spin-button,
+    input[type=number].rain-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+    }
+
+    input[type=number].rain-input:focus {
+      border-color: var(--text-primary);
+    }
+
+    .rain-unit {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .rain-scale-note {
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
     }
 
     /* Floating Legend (Bottom Left, Map Scale Colors Retained) */
@@ -601,13 +665,29 @@
       </div>
 
       <div class="timeline-footer">
-        <div class="opacity-control">
-          <span>Water Opacity:</span>
-          <input type="range" id="opacity-slider" min="0.1" max="1.0" value="0.80" step="0.05" class="mono-range" style="width: 70px;">
-          <span id="opacity-val" style="font-variant-numeric: tabular-nums;">80%</span>
+        <!-- Row 1: Opacity + Conveyance -->
+        <div class="timeline-footer-row">
+          <div class="opacity-control">
+            <span>Water Opacity:</span>
+            <input type="range" id="opacity-slider" min="0.1" max="1.0" value="0.80" step="0.05" class="mono-range" style="width: 70px;">
+            <span id="opacity-val" style="font-variant-numeric: tabular-nums;">80%</span>
+          </div>
+          <div>
+            Drain Capacity: <span style="color: var(--text-primary); font-weight: 500;">30 mm/h</span>
+          </div>
         </div>
-        <div>
-          Conveyance: <span style="color: var(--text-primary); font-weight: 500;">30 mm/h Active Drains</span>
+
+        <!-- Row 2: Rainfall Input -->
+        <div class="timeline-footer-row" style="gap: 10px;">
+          <div class="rainfall-control">
+            <span class="rainfall-label">Rainfall Intensity</span>
+            <input type="range" id="rain-slider" min="20" max="200" value="85" step="5" class="mono-range" style="width: 110px;">
+            <div class="rainfall-value-wrap">
+              <input type="number" id="rain-input" class="rain-input" min="20" max="200" value="85">
+              <span class="rain-unit">mm/h</span>
+            </div>
+          </div>
+          <span class="rain-scale-note" id="rain-scale-label">Linear scale — base 85 mm/h</span>
         </div>
       </div>
     </div>
@@ -850,6 +930,32 @@
     let playInterval = null;
     let playSpeed = 2;
 
+    // Rainfall scaling: base simulation is 85 mm/hr (peak cloudburst)
+    const BASE_RAIN_MM = 85.0;
+    let currentRainMM = 85.0;
+
+    // Pre-computed simulation stats at 85 mm/hr (used for proportional scaling)
+    const BASE_FLOODED_HA = 137.5;
+    const BASE_MAX_DEPTH_M = 2.84;
+    const BASE_FLOODED_BLDGS = 7150;
+    const TOTAL_BLDGS = 8910;
+
+    function getRainScale() {
+      return currentRainMM / BASE_RAIN_MM;
+    }
+
+    function updateRainKPIs() {
+      const scale = getRainScale();
+      const floodedHa = Math.min(BASE_FLOODED_HA * scale, 180).toFixed(1);
+      const maxDepth = (BASE_MAX_DEPTH_M * scale).toFixed(2);
+      const floodedBldgs = Math.min(Math.round(BASE_FLOODED_BLDGS * scale), TOTAL_BLDGS);
+      const floodPct = ((floodedBldgs / TOTAL_BLDGS) * 100).toFixed(1);
+
+      document.getElementById('kpi-area').innerText = `${floodedHa} ha`;
+      document.getElementById('kpi-depth').innerText = `${maxDepth} m`;
+      document.getElementById('kpi-buildings').innerText = `${floodedBldgs.toLocaleString()} (${floodPct}%)`;
+    }
+
     function getDepthColor(val) {
       if (val < 0.05) return null;
       if (val < 0.20) return [64, 196, 255, 180];
@@ -867,6 +973,7 @@
       
       const frame = floodData.frames[frameKey];
       const [gridH, gridW] = floodData.grid_shape;
+      const scale = getRainScale();
       
       if (canvas.width !== gridW || canvas.height !== gridH) {
         canvas.width = gridW;
@@ -882,7 +989,8 @@
         const [r, c, val] = cells[i];
         if (r < 0 || r >= gridH || c < 0 || c >= gridW) continue;
         
-        const col = getDepthColor(val);
+        const scaledVal = val * scale;
+        const col = getDepthColor(scaledVal);
         if (col) {
           const idx = (r * gridW + c) * 4;
           data[idx] = col[0];
@@ -912,8 +1020,13 @@
       const info = phases[timeMin];
       document.getElementById('time-display').innerText = `T = ${timeMin} min`;
       document.getElementById('phase-display').innerText = info.phase;
-      document.getElementById('kpi-rain').innerText = info.rain;
+      // Show actual current rainfall (phase rain × scale factor)
+      const phaseRainBase = parseFloat(info.rain);
+      const phaseRainScaled = (phaseRainBase * scale).toFixed(1);
+      document.getElementById('kpi-rain').innerText = `${currentRainMM.toFixed(0)} mm/h`;
       document.getElementById('time-slider').value = currentFrameIndex;
+
+      updateRainKPIs();
     }
 
     function stepForward() {
@@ -1205,6 +1318,43 @@
         floodData = data;
         renderFloodFrame('10');
       });
+
+    // Rainfall control: slider + number input (synced, 20–200 mm/hr)
+    function applyRainfallChange(mmhr) {
+      const clamped = Math.max(20, Math.min(200, Math.round(mmhr / 5) * 5));
+      currentRainMM = clamped;
+
+      // Sync UI
+      document.getElementById('rain-slider').value = clamped;
+      document.getElementById('rain-input').value = clamped;
+
+      // Update note label
+      const scale = getRainScale();
+      const scaleStr = scale.toFixed(2);
+      let intensityLabel = clamped < 50 ? 'Light rain' : clamped < 80 ? 'Moderate storm' : clamped < 110 ? 'Cloudburst' : clamped < 150 ? 'Extreme storm' : 'Catastrophic';
+      document.getElementById('rain-scale-label').innerText = `×${scaleStr} scale — ${intensityLabel}`;
+
+      // Re-render current frame with new scale
+      renderFloodFrame(snapshots[currentFrameIndex].toString());
+    }
+
+    document.getElementById('rain-slider').addEventListener('input', (e) => {
+      applyRainfallChange(parseInt(e.target.value));
+    });
+
+    document.getElementById('rain-input').addEventListener('change', (e) => {
+      let val = parseInt(e.target.value);
+      if (isNaN(val)) val = 85;
+      applyRainfallChange(val);
+    });
+
+    document.getElementById('rain-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        let val = parseInt(e.target.value);
+        if (isNaN(val)) val = 85;
+        applyRainfallChange(val);
+      }
+    });
 
     // Spacebar play/pause
     window.addEventListener('keydown', (e) => {
